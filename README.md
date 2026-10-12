@@ -2,15 +2,17 @@
 
 天津大学入党申请人培训结业考试的复习工具。**单页网页：无后端、无登录、无外部请求**——一个 HTML 文件打开就能刷题。
 
-在线版（**推荐给同学用**）：<https://tju-party-quiz.app.workbuddy.host/>
+在线版（**推荐**）：<https://linkmo0225.github.io/tju-party-quiz/>
 
-> 这是分享给考生时应该发的那个地址。国内直连可打开，不需要任何工具。
-> 平台不提供自定义响应头，所以这版不走 Gzip、缓存也弱一些，但打开就能用。
+> 有 Gzip 和 `Cache-Control` / `ETag`，首屏传输约 **88 KB**，是下面那版的 1/3。
+> **实测国内直连可用**（2026-10-12，无代理，手机流量与宽带均验证通过）：
+> `github.io` 走 Fastly CDN，与 `github.com` 不是同一条线路——前者通常可达，后者常被挡住。
+> 该域名历史上有过不稳定，遇到打不开就换用下面的备用地址。
 
-GitHub Pages：<https://linkmo0225.github.io/tju-party-quiz/>
+备用在线版：<https://tju-party-quiz.app.workbuddy.host/>
 
-> 有 Gzip 和 `Cache-Control`/`ETag`，传输量约为上面那版的 1/3。
-> 但 `github.io` 在国内 DNS 被污染，**不加工具打不开**——所以它适合开发者预览，不适合发给考生。
+> 国内直连同样可用，作为 Pages 打不开时的后备。
+> 平台不提供自定义响应头，这版**不走 Gzip、也没有缓存校验**，首屏要下 285 KB。
 
 ## 功能
 
