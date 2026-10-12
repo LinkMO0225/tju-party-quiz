@@ -4,15 +4,11 @@
 
 在线版（**推荐**）：<https://linkmo0225.github.io/tju-party-quiz/>
 
-> 有 Gzip 和 `Cache-Control` / `ETag`，首屏传输约 **88 KB**，是下面那版的 1/3。
-> **实测国内直连可用**（2026-10-12，无代理，手机流量与宽带均验证通过）：
-> `github.io` 走 Fastly CDN，与 `github.com` 不是同一条线路——前者通常可达，后者常被挡住。
-> 该域名历史上有过不稳定，遇到打不开就换用下面的备用地址。
+> 国内直连可用（2026-10-12 实测，手机流量与宽带均通过）。有 Gzip 和缓存，首屏约 88 KB。
 
-备用在线版：<https://tju-party-quiz.app.workbuddy.host/>
+备用：<https://tju-party-quiz.app.workbuddy.host/>
 
-> 国内直连同样可用，作为 Pages 打不开时的后备。
-> 平台不提供自定义响应头，这版**不走 Gzip、也没有缓存校验**，首屏要下 285 KB。
+> 裸连同样可开；无 Gzip，首屏约 285 KB。
 
 ## 功能
 
