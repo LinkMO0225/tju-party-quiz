@@ -498,6 +498,8 @@ console.log('\n=== 十二、关于 / 更新日志 ===');
   ok(ah.includes('doki') && ah.includes('宝宝巴豆') && ah.includes('爱读报的坚果'),
     '鸣谢含三位测试者');
   ok(ah.includes('Wilson') && ah.includes('DeepSeek V4.1 Flash'), '鸣谢含协作方 Wilson 与底层模型');
+  ok(ah.includes('24软工｜Hilbert') && ah.includes('代码贡献'), '鸣谢含代码贡献者 24软工｜Hilbert');
+  ok(!/「林克」|「都大」|「🫘」|「果子哥」/.test(ah), '鸣谢已去掉全部「称号」括号');
   ok(ah.includes('579') && ah.includes('87'), '数据来源写明题库与卡片规模');
   ok(ah.includes('不是官方答案'), '写明「不是官方答案」的免责说明');
   ok(!/__VER__|__LOG__/.test(ah), '关于页无未替换占位符');

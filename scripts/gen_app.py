@@ -470,13 +470,14 @@ function about(){
    '</ul></div>'+
 
    '<div class="card"><h3>鸣谢</h3>'+
-   '<p>作者　<b>「林克」26材料｜Link_MO</b></p>'+
+   '<p>作者　<b>26材料｜Link_MO</b></p>'+
    '<p>协作　<b>Wilson</b>（AI 助手 · DeepSeek V4.1 Flash）</p>'+
+   '<p>代码贡献　<b>24软工｜Hilbert🐊</b></p>'+
    '<p style="margin-bottom:4px">参与测试</p>'+
    '<ul class="cred">'+
-   '<li>「都大」26社科｜doki</li>'+
-   '<li>「🫘」26电气｜宝宝巴豆</li>'+
-   '<li>「果子哥」26脑机｜爱读报的坚果</li>'+
+   '<li>26社科｜doki</li>'+
+   '<li>26电气｜宝宝巴豆</li>'+
+   '<li>26脑机｜爱读报的坚果</li>'+
    '</ul>'+
    '<p style="margin-bottom:0">以及 26 天大 JiaYuan 群参与测试的所有群友。</p></div>'+
 

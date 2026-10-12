@@ -27,7 +27,7 @@ GitHub Pages：<https://linkmo0225.github.io/tju-party-quiz/>
 index.html                    # 成品：完整应用（同时也是 GitHub Pages 的首页）
 scripts/
   gen_app.py                  # 生成器：读题库数据 + 更新日志，产出 index.html
-  test_app.js                 # 测试：在 DOM stub 里真跑页面脚本，共 161 项断言
+  test_app.js                 # 测试：在 DOM stub 里真跑页面脚本，共 163 项断言
   test_regressions.js         # 筛选、存储并发、异常恢复和无障碍回归检查
   verify_pages_http.py        # 已部署页面的 Gzip、304 和版本一致性验收
   test_pages_http.py          # HTTP 验收工具的正常与异常场景回归检查
@@ -46,7 +46,7 @@ output/
 
 ```bash
 python scripts/gen_app.py     # 产出 index.html 与 output/入党申请人复习.html（同一份内容）
-node scripts/test_app.js      # 161 项断言，直接验证首页，全绿时打印「全部检查通过」
+node scripts/test_app.js      # 163 项断言，直接验证首页，全绿时打印「全部检查通过」
 node scripts/test_regressions.js # 功能和稳定性问题的回归检查
 ```
 
