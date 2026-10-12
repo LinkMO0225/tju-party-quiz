@@ -271,6 +271,8 @@ console.log('\n=== 七、错题强化 ===');
 const eb = boot();
 eb.ctx.prog = {};
 [10, 20, 30, 40].forEach(i => { eb.ctx.prog[i] = { p: 'A', ok: false, seen: 1 }; });
+// 普通题现在只从「做过的题」里出，补一批做对过的题作为普通题来源
+[100, 101, 102, 103, 104, 105, 106, 107, 108, 109].forEach(i => { eb.ctx.prog[i] = { p: 'A', ok: true, seen: 1 }; });
 ok(eb.ctx.wrongCount() === 4, 'wrongCount 数出 4 道错题', eb.ctx.wrongCount());
 eb.ctx.examHome();
 ok(eb.els['app'].innerHTML.includes('错题强化 · 无限刷（当前范围 4 道错题）'), '测验首页出现强化入口');
@@ -315,8 +317,9 @@ ok(eb2.ctx.prog[firstP].ok === false, '错题记录仍是错');
 // 普通题答错 → 进池
 const eb3 = boot();
 eb3.ctx.prog = {}; eb3.ctx.prog[100] = { p: 'A', ok: false, seen: 1 };
+eb3.ctx.prog[200] = { p: 'A', ok: true, seen: 1 };   // 做对过的题：普通位来源
 eb3.ctx.rStart();
-const nidx = eb3.ctx.R2.base.find(i => !eb3.ctx.prog[i]);
+const nidx = eb3.ctx.R2.base.find(i => eb3.ctx.R2.pool.indexOf(i) < 0);
 const before = eb3.ctx.R2.pool.length;
 eb3.ctx.S.mode = 'reinforce'; eb3.ctx.S.fromPool = false;
 eb3.ctx.S.queue = [nidx]; eb3.ctx.S.pos = 0; eb3.ctx.render();

@@ -295,6 +295,7 @@ var T={0:'单选',1:'多选'};
 // 卡片模式(R/LSR)按卡片下标存，卡片没变过，进度不受影响。
 var LS='tju_exam_progress_v3', LSS='tju_exam_setting_v1';
 var LSR='tju_recite_v1', LSRS='tju_recite_setting_v1';
+var LSR2='tju_reinforce_v1';   // 强化会话存档：刷新/关页后可「继续上次」
 var pendingWrites={}, damagedStore={}, storeRaw={}, storeReadFailed=false, storeInvalid=false;
 function storeStatus(){
   var el=document.getElementById('storageStatus'), messages=[];
@@ -393,7 +394,7 @@ function svr(o,section,idx){
 }
 function cleanSettings(o,key,recite){
   var out={}, allowed=recite?{scope:['n90','all'],shuffle:[0,1],onlyMark:[0,1]}:
-    {scope:['all','n90','vol','party'],type:['all','0','1','2'],state:['all','todo','wrong'],shuffle:[0,1],shuffleOpt:[0,1],confirmSingle:[0,1]};
+    {scope:['all','n90','vol','party'],type:['all','0','1','2'],state:['all','todo','wrong'],shuffle:[0,1],shuffleOpt:[0,1],confirmSingle:[0,1],gap:[2,3,5]};
   if(!isObject(o)){badStore(key);return out}
   Object.keys(o).forEach(function(k){
     if(Object.prototype.hasOwnProperty.call(allowed,k)&&(typeof o[k]==='string'||typeof o[k]==='number')&&
@@ -404,6 +405,23 @@ function lds(){return cleanSettings(readStore(LSS),LSS,false)}
 function svs(o){return writeStore(LSS,o)}
 function ldrs(){return cleanSettings(readStore(LSRS),LSRS,true)}
 function svrs(o){return writeStore(LSRS,o)}
+/* 强化会话存档：只存可再生的轻量状态（池/计数/题号偏移），base 与 norm 恢复时从 prog 重建 */
+function cleanR2(o,key){
+  if(!isObject(o)){badStore(key);return null}
+  var pool=[];
+  if(Array.isArray(o.pool))o.pool.forEach(function(i){
+    if(typeof i==='number'&&validIndex(String(i),BANK.length)&&pool.indexOf(i)<0)pool.push(i);
+  });
+  var judged={};
+  if(isObject(o.judged))Object.keys(o.judged).forEach(function(k){if(validIndex(k,BANK.length))judged[k]=1});
+  function num(v){return typeof v==='number'&&isFinite(v)&&v>=0?Math.floor(v):0}
+  return {pool:pool,judged:judged,mastered:num(o.mastered),total:num(o.total),offset:num(o.offset),since:num(o.since)};
+}
+function ldr2(){var d=cleanR2(readStore(LSR2),LSR2);return (d&&d.pool.length)?d:null}
+function svR2(){
+  return writeStore(LSR2,{pool:R2.pool,judged:R2.judged,mastered:R2.mastered,total:R2.total,offset:R2.offset,since:R2.since});
+}
+function clrR2(){try{localStorage.removeItem(LSR2)}catch(e){}delete pendingWrites[LSR2]}
 function retrySaves(){
   try{localStorage.getItem(LS);storeReadFailed=false}catch(e){storeReadFailed=true}
   Object.keys(pendingWrites).filter(function(k){return k!==LS&&k!==LSR}).forEach(function(k){writeStore(k,JSON.parse(pendingWrites[k]))});
@@ -621,7 +639,7 @@ function reciteFinish(){
 }
 
 /* ==================== 做题测验 ==================== */
-var prog=ld(), setting=Object.assign({scope:'all',type:'all',state:'all',shuffle:0,shuffleOpt:1,confirmSingle:1},lds());
+var prog=ld(), setting=Object.assign({scope:'all',type:'all',state:'all',shuffle:0,shuffleOpt:1,confirmSingle:1,gap:3},lds());
 // 旧版本里可能存着「填空」题型筛选（type=2），刷题已不含填空，兜底重置
 if(setting.type==='2'){setting.type='all';svs(setting)}
 // S.mode: 'exam' 普通测验 / 'reinforce' 错题强化
@@ -688,7 +706,7 @@ function examHome(){
     tchip('shuffleOpt','选项乱序')+tchip('shuffle','题目随机')+tchip('confirmSingle','单选需确认')+
     '</div></div></div>'+
     '<button class="btn" onclick="start()">按以上条件开始</button>'+
-    (wc?'<button class="btn warn" style="margin-top:10px" onclick="rStart()">'+
+    (wc?'<button class="btn warn" style="margin-top:10px" onclick="rIntro()">'+
       '错题强化 · 无限刷（当前范围 '+wc+' 道错题）</button>'
      :'<button class="btn warn" style="margin-top:10px" disabled>'+
       '错题强化 · 无限刷（当前没有错题，先做一轮）</button>')+
@@ -824,18 +842,23 @@ function judge(){
 
   var extra='';
   if(S.mode==='reinforce'){
-    R2.total++;
-    var inPool=R2.pool.indexOf(idx);
-    if(inPool>=0&&ok){                      // 答对 → 从错题池彻底移除
-      R2.pool.splice(inPool,1);R2.mastered++;
-      extra='<br><span style="font-size:13px;color:#1e7d34">✓ 这题已攻克，已移出错题池</span>';
-    }else if(inPool>=0){
-      extra='<br><span style="font-size:13px;color:#c62828">✗ 还在错题池里，稍后会再来一次</span>';
-    }else if(!ok){                           // 普通题做错 → 直接进池
-      R2.pool.push(idx);
-      extra='<br><span style="font-size:13px;color:#c62828">✗ 这题已加入错题池</span>';
+    // 同一题只结算一次：回看后重答不再重复计数，也不会把已攻克的题推回池里
+    if(!R2.judged[idx]){
+      R2.judged[idx]=1;
+      R2.total++;
+      var inPool=R2.pool.indexOf(idx);
+      if(inPool>=0&&ok){                      // 答对 → 从错题池彻底移除
+        R2.pool.splice(inPool,1);R2.mastered++;
+        extra='<br><span style="font-size:13px;color:#1e7d34">✓ 这题已攻克，已移出错题池</span>';
+      }else if(inPool>=0){
+        extra='<br><span style="font-size:13px;color:#c62828">✗ 还在错题池里，稍后会再来一次</span>';
+      }else if(!ok){                           // 普通题做错 → 直接进池
+        R2.pool.push(idx);
+        extra='<br><span style="font-size:13px;color:#c62828">✗ 这题已加入错题池</span>';
+      }
     }
     extra+='<br><span style="font-size:13px;color:#5f6b7a">错题池还剩 '+R2.pool.length+' 道</span>';
+    svR2();
   }
 
   paint();
@@ -846,7 +869,11 @@ function judge(){
     extra+
     (it.n?'':'<br><span style="font-size:13px">出处：'+it.g+'</span>')+'</div>';
 }
-function next(){ if(S.mode==='reinforce'){R2Step();return} if(S.pos<S.queue.length-1){S.pos++;render()} else{finish()} }
+function next(){
+  if(S.pos<S.queue.length-1){S.pos++;render();return}   // 先沿历史前进：回看后不跳位
+  if(S.mode==='reinforce'){R2Step();return}
+  finish();
+}
 function prev(){ if(S.pos>0){S.pos--;render()} }
 function finish(){
   var st=stats(), w=wrongCount();
@@ -855,7 +882,7 @@ function finish(){
    '<div class="stat"><div><b>'+st.done+'</b><span>累计已练</span></div>'+
    '<div><b>'+st.rate+'%</b><span>累计正确率</span></div>'+
    '<div><b>'+w+'</b><span>待清错题</span></div></div>'+
-   (w?'<button class="btn warn" style="margin-bottom:10px" onclick="rStart()">错题强化 · 无限刷（'+w+' 道）</button>':'')+
+   (w?'<button class="btn warn" style="margin-bottom:10px" onclick="rIntro()">错题强化 · 无限刷（'+w+' 道）</button>':'')+
    '<button class="btn ghost" style="margin-bottom:12px" onclick="start()">再来一轮</button>'+
    '<button class="btn" onclick="home()">回到首页</button></div>';
 }
@@ -865,11 +892,61 @@ function finish(){
    强化题答对 → 从错题池永久移除；答错 → 留在池里，稍后再来。
    普通题答错 → 也进池。池子清空即结束。
 */
-var R2={base:[],pool:[],norm:[],np:0,since:0,gap:3,mastered:0,total:0,offset:0};
+var R2={base:[],pool:[],norm:[],np:0,since:0,gap:3,mastered:0,total:0,offset:0,judged:{}};
+
+/* ==================== 强化启动页 ====================
+   点「错题强化」先进这里：说明文案 + 强化密度 + 继续上次/重新开始。
+*/
+var RINTRO='<div class="card"><p class="sub" style="margin:0 0 8px">欢迎进入强化模式！开始前有几点说明：</p>'+
+ '<ol style="margin:0;padding-left:20px;font-size:13px;line-height:1.75;color:#5f6b7a">'+
+ '<li>强化模式题库只有<b>已做过的题</b>。建议先完整刷过一遍题库（或关键部分），再来强化。</li>'+
+ '<li>强化模式会按固定频率，在你做过的题里不断插入曾经的错题，直到全部攻克。</li>'+
+ '<li>在攻克错题池里的所有题之前，它<b>不会结束</b>——你可以随时保存进度退出。彻底强化一次需要不少时间，也可能相当折磨。加油。</li>'+
+ '</ol></div>';
+function gapChip(v){
+  var on=+setting.gap===v;
+  return '<button type="button" class="chip'+(on?' on':'')+'" aria-pressed="'+on+'" onclick="setGap('+v+')">每 '+v+' 题</button>';
+}
+function setGap(v){setting.gap=+v;svs(setting);rIntro();focusChip("setGap("+v+")")}
+function rIntro(){
+  S.mode='exam';
+  var wc=wrongCount(), saved=ldr2();
+  var html='<div class="wrap"><div class="top"><button class="back" onclick="examHome()">←</button>'+
+   '<div class="prog">错题强化</div></div>'+
+   '<h1>错题强化 · 无限刷</h1>'+RINTRO+
+   '<p class="sub">当前筛选下有 <b>'+wc+'</b> 道错题</p>'+
+   '<div class="card"><div class="fgroup" style="margin-bottom:0"><div class="lb">强化密度（每几道普通题插一道错题）</div>'+
+   '<div class="chips">'+gapChip(2)+gapChip(3)+gapChip(5)+'</div></div></div>';
+  if(saved){
+    html+='<button class="btn" onclick="rResume()">继续上次（还剩 '+saved.pool.length+' 道）</button>'+
+      '<button class="btn ghost" style="margin-top:10px" onclick="rStart()">重新开始</button>';
+  }else if(wc){
+    html+='<button class="btn" onclick="rStart()">开始强化</button>';
+  }else{
+    html+='<button class="btn" disabled>当前没有错题，先去刷一轮</button>';
+  }
+  html+='<p class="hint">强化会一直继续，直到错题池清空；过程中可随时返回，进度自动保存。</p></div>';
+  app.innerHTML=html;
+}
+function rResume(){
+  var d=ldr2();
+  if(!d){rIntro();return}
+  S.mode='exam';
+  R2.gap=+setting.gap||3;
+  R2.base=buildQueue(true).filter(function(i){return prog[i]});
+  R2.pool=d.pool.filter(function(i){return prog[i]&&prog[i].ok===false});
+  if(!R2.pool.length){clrR2();rIntro();return}
+  R2.norm=shuffArr(R2.base);R2.np=0;
+  R2.since=d.since;R2.mastered=d.mastered;R2.total=d.total;R2.offset=d.offset;R2.judged=d.judged;
+  S.mode='reinforce';S.queue=[];S.pos=-1;S.fromPool=false;
+  R2Step();
+}
 
 function rStart(){
   S.mode='exam';
-  R2.base=buildQueue(true);
+  R2.gap=+setting.gap||3;
+  // 普通题只从「做过的题」里出：没碰过的题不进来，避免强化变成刷新题
+  R2.base=buildQueue(true).filter(function(i){return prog[i]});
   R2.pool=[];
   for(var i=0;i<R2.base.length;i++){
     var t=R2.base[i];
@@ -881,13 +958,14 @@ function rStart(){
     return;
   }
   R2.norm=shuffArr(R2.base);R2.np=0;
-  R2.since=R2.gap;R2.mastered=0;R2.total=0;R2.offset=0;
+  R2.since=R2.gap;R2.mastered=0;R2.total=0;R2.offset=0;R2.judged={};
   S.mode='reinforce';S.queue=[];S.pos=-1;S.fromPool=false;
+  svR2();
   R2Step();
 }
 
 function R2Step(){
-  if(!R2.pool.length){ S.mode='exam'; R2Finish(); return; }
+  if(!R2.pool.length){ S.mode='exam'; clrR2(); R2Finish(); return; }
   var idx;
   if(R2.since>=R2.gap){                      // 轮到强化题
     R2.since=0;
@@ -903,6 +981,7 @@ function R2Step(){
   // 只保留最近 100 题供回看，题号用 offset 保持连续，避免无限模式积累历史。
   if(S.queue.length>100){S.queue.shift();R2.offset++}
   S.pos=S.queue.length-1;
+  svR2();
   render();
 }
 
@@ -921,7 +1000,7 @@ function exitReinforce(){
   app.innerHTML='<div class="wrap"><h1>退出强化？</h1>'+
    '<p class="sub">错题池还剩 '+R2.pool.length+' 道。已攻克的题已移出错题池。'+
      (Object.keys(pendingWrites).length?'部分进度尚未保存，请先重试保存。':'进度已保存。')+'</p>'+
-   '<button class="btn" style="margin-bottom:10px" onclick="rStart()">继续强化</button>'+
+   '<button class="btn" style="margin-bottom:10px" onclick="rResume()">继续强化</button>'+
    '<button class="btn ghost" onclick="examHome()">回测验首页</button></div>';
 }
 

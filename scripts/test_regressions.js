@@ -1,4 +1,4 @@
-// Regression checks for the seven defects found during the local assessment.
+// Regression checks for the defects found during the local assessment.
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const path = require('node:path');
@@ -174,5 +174,73 @@ test('F7: mastered question feedback describes removal from the wrong pool', () 
   const { ctx, els } = boot(); ctx.prog[0] = { p: '', ok: false, seen: 1 }; ctx.rStart();
   ctx.S.perm.forEach((v, d) => { if (ctx.BANK[0].a.includes('ABCD'[v])) ctx.pick(d); }); ctx.submit();
   assert.ok(els.jd.innerHTML.includes('已移出错题池')); assert.ok(!els.jd.innerHTML.includes('不会再出现'));
+});
+test('F8: reviewing a mastered question cannot push it back into the pool', () => {
+  const { ctx } = boot(); ctx.prog[0] = { p: '', ok: false, seen: 1 }; ctx.rStart();
+  ctx.S.perm.forEach((v, d) => { if (ctx.BANK[0].a.includes('ABCD'[v])) ctx.pick(d); });
+  ctx.submit();
+  assert.equal(ctx.R2.pool.length, 0); assert.equal(ctx.R2.mastered, 1); assert.equal(ctx.R2.total, 1);
+  ctx.S.queue = [0]; ctx.S.pos = 0; ctx.render(); ctx.skip();
+  assert.equal(ctx.R2.pool.length, 0, 'pool must stay empty after a review re-answer');
+  assert.equal(ctx.R2.mastered, 1, 'mastered must not double-count');
+  assert.equal(ctx.R2.total, 1, 'total must not double-count');
+});
+test('F9: reinforcement next() advances through history instead of jumping', () => {
+  const { ctx } = boot(); ctx.prog[0] = { p: '', ok: false, seen: 1 }; ctx.rStart();
+  for (let i = 0; i < 5; i++) { ctx.skip(); ctx.next(); }
+  const len = ctx.S.queue.length; assert.equal(len, 6);
+  ctx.prev(); ctx.prev(); assert.equal(ctx.S.pos, len - 3);
+  ctx.next();
+  assert.equal(ctx.S.pos, len - 2, 'next() must step forward through history');
+  assert.equal(ctx.S.queue.length, len, 'no new question while history remains');
+});
+test('F10: reinforcement normal questions come only from attempted questions', () => {
+  const { ctx } = boot();
+  ctx.prog[0] = { p: '', ok: false, seen: 1 };
+  ctx.prog[1] = { p: 'A', ok: true, seen: 1 };
+  ctx.rStart();
+  assert.equal(ctx.R2.base.slice().sort((a, b) => a - b).join(','), '0,1');
+  assert.ok(ctx.R2.base.every(i => ctx.prog[i]), 'base must exclude untouched questions');
+});
+test('F11: reinforcement intro shows the warning copy and density chips', () => {
+  const { ctx, els } = boot();
+  ctx.prog[0] = { p: '', ok: false, seen: 1 };
+  ctx.rIntro();
+  assert.ok(els.app.innerHTML.includes('欢迎进入强化模式'));
+  assert.ok(els.app.innerHTML.includes('不会结束'));
+  assert.ok(els.app.innerHTML.includes('每 3 题'));
+  assert.ok(els.app.innerHTML.includes('开始强化'));
+});
+test('F12: reinforcement density setting controls the gap', () => {
+  const { ctx } = boot();
+  ctx.prog[0] = { p: '', ok: false, seen: 1 };
+  ctx.setGap(5);
+  assert.equal(+ctx.setting.gap, 5);
+  ctx.rStart();
+  assert.equal(ctx.R2.gap, 5);
+  assert.equal(ctx.S.fromPool, true, 'first question is a reinforcement one');
+});
+test('F13: reinforcement session persists and resumes', () => {
+  const store = { [LS]: JSON.stringify({
+    0: { p: '', ok: false, seen: 1 }, 1: { p: '', ok: false, seen: 1 }, 2: { p: 'A', ok: true, seen: 1 } }) };
+  const a = boot(store);
+  a.ctx.rStart();
+  const saved = a.ctx.ldr2();
+  assert.ok(saved && saved.pool.length === 2, 'session persisted with 2 wrong questions');
+  const b = boot(store);
+  b.ctx.rResume();
+  assert.equal(b.ctx.S.mode, 'reinforce');
+  assert.equal(b.ctx.R2.pool.length, 2);
+  assert.equal(b.ctx.R2.mastered, 0);
+});
+test('F14: clearing the pool removes the saved session', () => {
+  const store = { [LS]: JSON.stringify({ 0: { p: '', ok: false, seen: 1 } }) };
+  const a = boot(store);
+  a.ctx.rStart();
+  assert.ok(a.ctx.ldr2(), 'session saved on start');
+  a.ctx.S.perm.forEach((v, d) => { if (a.ctx.BANK[0].a.includes('ABCD'[v])) a.ctx.pick(d); });
+  a.ctx.submit();
+  assert.equal(a.ctx.R2.pool.length, 0);
+  assert.equal(a.ctx.ldr2(), null, 'empty pool must clear the saved session');
 });
 console.log(`全部 ${passed} 项回归检查通过`);
