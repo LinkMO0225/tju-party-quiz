@@ -14,5 +14,13 @@ output/入党申请人复习.html
 Thumbs.db
 *.bak
 
+# ---- 原始资料：学校册子全文、PDF 和提取中间件都不随仓库分发 ----
+# 仓库里只放结构化题库 JSON（pdf90/、pdf91/ 与 data/），原文靠本地自行提取
+pdf_extract/
+pdf90/full.txt
+pdf90/full.json
+pdf91/full.txt
+*.pdf
+
 # HTTP 验收报告是运行结果，不作为网站内容发布
 /pages-http-report.json

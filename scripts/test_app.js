@@ -51,11 +51,16 @@ const BANK = ctx.BANK, CARDS = ctx.CARDS;
 
 /* ---------------- 一、刷题题库 ---------------- */
 console.log('\n=== 一、刷题题库（应已无填空题） ===');
-ok(BANK.length === 579, '题库 579 道（旧 242 + 网上党课 337）', BANK.length);
+ok(BANK.filter(q => !q.h).length === 586, '题库 586 道可见（591 条记录，5 条跨分类重复已合并）', BANK.filter(q => !q.h).length);
 ok(BANK.every(q => q.t !== 2), '题库里不存在填空题');
-ok(BANK.filter(q => q.n === 1).length === 71, '第90期相关 71 道');
-ok(BANK.filter(q => q.c === 2).length === 337, '网上党课 337 道');
-ok(BANK.filter(q => q.c === 1).length === 171, '往期真题卷 171 道');
+ok(BANK.filter(q => q.n === 1).length === 57, '91期相关 57 道');
+ok(BANK.filter(q => q.c === 2 && !q.h).length === 322, '网上党课 322 道（可见）');
+ok(BANK.filter(q => q.c === 1).length === 207, '往年真题 207 道');
+ok(BANK.filter(q => q.c === 0).length === 57, '91期相关（c=0）57 道，与 n=1 口径一致');
+ok(BANK.filter(q => q.c === 0).length +
+   BANK.filter(q => q.c === 1).length +
+   BANK.filter(q => q.c === 2).length === BANK.length,
+   '三类互斥且穷尽：分类相加 == 题库总数');
 ok(BANK[242].c === 2 && BANK[241].c !== 2,
   '党课题目接在旧题库之后（前 242 道下标未位移，旧进度不串位）');
 let bad = [];
@@ -81,22 +86,22 @@ ok(fixq && fixq.a === 'ABCD' && fixq.t === 1, '该题为多选且答案全选 AB
 /* ---------------- 一之二、范围筛选（新增网上党课） ---------------- */
 console.log('\n=== 一之二、范围筛选 ===');
 const sc2 = ctx.scopeCount();
-ok(sc2.all === 579 && sc2.n90 === 71 && sc2.vol === 171 && sc2.party === 337,
+ok(sc2.all === 586 && sc2.n90 === 57 && sc2.vol === 207 && sc2.party === 322,
   'scopeCount 三类来源分类正确', sc2);
 ctx.setting.scope = 'party';
-ok(ctx.buildQueue().length === 337, '范围=网上党课 → 337 题', ctx.buildQueue().length);
+ok(ctx.buildQueue().length === 322, '范围=网上党课 → 322 题', ctx.buildQueue().length);
 ok(ctx.buildQueue().every(i => BANK[i].c === 2), '筛选结果全部是党课题');
 ctx.setting.scope = 'n90';
-ok(ctx.buildQueue().length === 71, '范围=第90期相关 → 71 题', ctx.buildQueue().length);
+ok(ctx.buildQueue().length === 57, '范围=91期相关 → 57 题', ctx.buildQueue().length);
 ctx.setting.scope = 'vol';
-ok(ctx.buildQueue().length === 171, '范围=往期真题卷 → 171 题', ctx.buildQueue().length);
+ok(ctx.buildQueue().length === 207, '范围=往年真题 → 207 题', ctx.buildQueue().length);
 ctx.setting.scope = 'all';
-ok(ctx.buildQueue().length === 579, '范围=全部 → 579 题', ctx.buildQueue().length);
+ok(ctx.buildQueue().length === 586, '范围=全部 → 586 题', ctx.buildQueue().length);
 
 /* ---------------- 二、卡片数据 ---------------- */
 console.log('\n=== 二、卡片数据 ===');
-ok(CARDS.length === 87, '卡片总数 87', CARDS.length);
-ok(CARDS.filter(c => c.n).length === 28, '第90期卡片 28');
+ok(CARDS.length === 22, '卡片总数 22（91期整套）', CARDS.length);
+ok(CARDS.filter(c => c.n).length === 22, '91期卡片 22');
 let mism = [];
 CARDS.forEach((c, i) => {
   const k = (c.s.match(/_{3,}/g) || []).length;
@@ -109,12 +114,12 @@ ok(CARDS.every(c => c.h.every(x => x && x.trim())), '所有答案片段非空');
 console.log('\n=== 三、首页 ===');
 ctx.home();
 ok(els['app'].innerHTML.includes('卡片背诵') && els['app'].innerHTML.includes('做题测验'), '两个入口都在');
-ok(els['app'].innerHTML.includes('单选 438') && els['app'].innerHTML.includes('多选 141'), '题数正确');
+ok(els['app'].innerHTML.includes('单选 444') && els['app'].innerHTML.includes('多选 142'), '题数正确');
 ctx.examHome();
-ok(els['app'].innerHTML.includes('网上党课 337'), '测验首页出现「网上党课」范围筛选');
-ok(els['app'].innerHTML.includes('第90期相关 71') && els['app'].innerHTML.includes('往期真题卷 171'),
+ok(els['app'].innerHTML.includes('网上党课 322'), '测验首页出现「网上党课」范围筛选');
+ok(els['app'].innerHTML.includes('91期相关 57') && els['app'].innerHTML.includes('往年真题 207'),
   '其他范围筛选数字正确');
-ok(els['app'].innerHTML.includes('含网上党课 337 道'), '测验首页副标题提到党课题量');
+ok(els['app'].innerHTML.includes('含网上党课 322 道'), '测验首页副标题提到党课题量');
 
 /* ---------------- 四、选项打乱（本次迭代重点 1） ---------------- */
 console.log('\n=== 四、选项打乱 ===');
@@ -211,9 +216,9 @@ ok(v3.size >= 4, '默认（开）时强化模式也在乱序', v3.size + ' 种')
 /* ---------------- 五、卡片背诵（可撤回重背） ---------------- */
 console.log('\n=== 五、卡片背诵 ===');
 ctx.reciteStart(0);
-ok(ctx.R.queue.length === 28, '默认（第90期）28 张');
+ok(ctx.R.queue.length === 22, '默认（91期）22 张');
 ctx.rsetF('scope', 'all'); ctx.reciteStart(0);
-ok(ctx.R.queue.length === 87, '全部 87 张');
+ok(ctx.R.queue.length === 22, '全部 22 张');
 
 const ci = ctx.R.queue.find(i => CARDS[i].h.length >= 3);
 ctx.R.queue = [ci, CARDS.findIndex((c, i) => i !== ci)]; ctx.R.pos = 0; ctx.reciteRender();
@@ -242,7 +247,7 @@ ok(els['app'].innerHTML.includes('没有卡片'), '无标记时给出空态');
 /* ---------------- 六、单选 / 多选 区分 ---------------- */
 console.log('\n=== 六、单选 / 多选 区分 ===');
 ctx.examHome();
-ok(els['app'].innerHTML.includes('第90期相关'), '测验首页筛选器仍在');
+ok(els['app'].innerHTML.includes('91期相关'), '测验首页筛选器仍在');
 ok(!els['app'].innerHTML.includes('>填空<'), '题型筛选没有「填空」');
 ok(els['app'].innerHTML.includes('填空题已移到「卡片背诵」'), '页面注明填空已移走');
 
@@ -377,16 +382,16 @@ console.log('\n=== 八、旧 localStorage 兼容 ===');
 const b2 = boot({ tju_exam_setting_v1: JSON.stringify({ type: '2', scope: 'all' }) });
 ok(b2.ctx.setting.type === 'all', '旧的「填空」筛选(type=2)自动重置');
 b2.ctx.setting.shuffle = 0;
-ok(b2.ctx.buildQueue().length === 579, '重置后队列不为空', b2.ctx.buildQueue().length);
-const b3 = boot({ tju_recite_v1: '{坏数据' });
+ok(b2.ctx.buildQueue().length === 586, '重置后队列不为空', b2.ctx.buildQueue().length);
+const b3 = boot({ tju_recite_v2: '{坏数据' });
 ok(b3.ctx.rprog && b3.ctx.rprog.m && b3.ctx.rprog.s, '背诵进度损坏时回落为空');
 b3.ctx.reciteStart(0);
-ok(b3.ctx.R.queue.length === 28, '损坏数据下仍能开始背诵');
+ok(b3.ctx.R.queue.length === 22, '损坏数据下仍能开始背诵');
 
 /* ---------------- 九、持久化 ---------------- */
 console.log('\n=== 九、持久化 ===');
 console.log('  localStorage 键:', Object.keys(store).sort().join(', '));
-['tju_recite_v1', 'tju_recite_setting_v1', 'tju_exam_progress_v3'].forEach(k =>
+['tju_recite_v2', 'tju_recite_setting_v1', 'tju_exam_progress_v3'].forEach(k =>
   ok(Object.keys(store).includes(k), k + ' 已落盘'));
 
 /* ---------------- 十、本次迭代修复（Q1 提示字母 / Q2 多选跳过 / Q3 单选确认） ---------------- */
@@ -503,7 +508,7 @@ console.log('\n=== 十二、关于 / 更新日志 ===');
   ok(ah.includes('Wilson') && ah.includes('DeepSeek V4.1 Flash'), '鸣谢含协作方 Wilson 与底层模型');
   ok(ah.includes('24软工｜Hilbert') && ah.includes('代码贡献'), '鸣谢含代码贡献者 24软工｜Hilbert');
   ok(!/「林克」|「都大」|「🫘」|「果子哥」/.test(ah), '鸣谢已去掉全部「称号」括号');
-  ok(ah.includes('579') && ah.includes('87'), '数据来源写明题库与卡片规模');
+  ok(ah.includes('586') && ah.includes('22'), '数据来源写明题库与卡片规模');
   ok(ah.includes('不是官方答案'), '写明「不是官方答案」的免责说明');
   ok(!/__VER__|__LOG__/.test(ah), '关于页无未替换占位符');
   ok(/v\d+\.\d+(?:fixed)?/.test(ah), '关于页底部版本号已替换为真实值',
