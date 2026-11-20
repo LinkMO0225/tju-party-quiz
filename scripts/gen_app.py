@@ -441,13 +441,15 @@ function cleanR2(o,key){
     if(typeof i==='number'&&validIndex(String(i),BANK.length)&&pool.indexOf(i)<0)pool.push(i);
   });
   var judged={};
-  if(isObject(o.judged))Object.keys(o.judged).forEach(function(k){if(validIndex(k,BANK.length))judged[k]=1});
+  // 结算标记按「这一次出题」记，键为 p+单调出题序号；旧版按题号记的数字键直接丢弃：
+  // 继续上次时队列是空的，没有历史可回看，丢掉不会引起重复计数。
+  if(isObject(o.judged))Object.keys(o.judged).forEach(function(k){if(/^p\d+$/.test(k))judged[k]=1});
   function num(v){return typeof v==='number'&&isFinite(v)&&v>=0?Math.floor(v):0}
-  return {pool:pool,judged:judged,mastered:num(o.mastered),total:num(o.total),offset:num(o.offset),since:num(o.since)};
+  return {pool:pool,judged:judged,mastered:num(o.mastered),total:num(o.total),offset:num(o.offset),since:num(o.since),seq:num(o.seq)};
 }
 function ldr2(){var d=cleanR2(readStore(LSR2),LSR2);return (d&&d.pool.length)?d:null}
 function svR2(){
-  return writeStore(LSR2,{pool:R2.pool,judged:R2.judged,mastered:R2.mastered,total:R2.total,offset:R2.offset,since:R2.since});
+  return writeStore(LSR2,{pool:R2.pool,judged:R2.judged,mastered:R2.mastered,total:R2.total,offset:R2.offset,since:R2.since,seq:R2.seq});
 }
 function clrR2(){try{localStorage.removeItem(LSR2)}catch(e){}delete pendingWrites[LSR2]}
 function retrySaves(){
@@ -889,9 +891,11 @@ function judge(){
 
   var extra='';
   if(S.mode==='reinforce'){
-    // 同一题只结算一次：回看后重答不再重复计数，也不会把已攻克的题推回池里
-    if(!R2.judged[idx]){
-      R2.judged[idx]=1;
+    // 结算的粒度是「这一次出题」，不是「这道题」：同一道题答错留在池里，
+    // 之后再抽到并答对，必须能正常移出。只有回看历史题重答才拦截。
+    var slot='p'+R2.keys[S.pos];
+    if(!R2.judged[slot]){
+      R2.judged[slot]=1;
       R2.total++;
       var inPool=R2.pool.indexOf(idx);
       if(inPool>=0&&ok){                      // 答对 → 从错题池彻底移除
@@ -939,7 +943,7 @@ function finish(){
    强化题答对 → 从错题池永久移除；答错 → 留在池里，稍后再来。
    普通题答错 → 也进池。池子清空即结束。
 */
-var R2={base:[],pool:[],norm:[],np:0,since:0,gap:3,mastered:0,total:0,offset:0,judged:{}};
+var R2={base:[],pool:[],norm:[],np:0,since:0,gap:3,mastered:0,total:0,offset:0,judged:{},seq:0,keys:[]};
 
 /* ==================== 强化启动页 ====================
    点「错题强化」先进这里：说明文案 + 强化密度 + 继续上次/重新开始。
@@ -985,6 +989,7 @@ function rResume(){
   if(!R2.pool.length){clrR2();rIntro();return}
   R2.norm=shuffArr(R2.base);R2.np=0;
   R2.since=d.since;R2.mastered=d.mastered;R2.total=d.total;R2.offset=d.offset;R2.judged=d.judged;
+  R2.seq=d.seq;R2.keys=[];
   S.mode='reinforce';S.queue=[];S.pos=-1;S.fromPool=false;
   R2Step();
 }
@@ -1005,7 +1010,7 @@ function rStart(){
     return;
   }
   R2.norm=shuffArr(R2.base);R2.np=0;
-  R2.since=R2.gap;R2.mastered=0;R2.total=0;R2.offset=0;R2.judged={};
+  R2.since=R2.gap;R2.mastered=0;R2.total=0;R2.offset=0;R2.judged={};R2.seq=0;R2.keys=[];
   S.mode='reinforce';S.queue=[];S.pos=-1;S.fromPool=false;
   svR2();
   R2Step();
@@ -1024,9 +1029,16 @@ function R2Step(){
     R2.since++;
     S.fromPool=false;
   }
+  R2.seq++;
+  R2.keys.push(R2.seq);
   S.queue.push(idx);
   // 只保留最近 100 题供回看，题号用 offset 保持连续，避免无限模式积累历史。
-  if(S.queue.length>100){S.queue.shift();R2.offset++}
+  if(S.queue.length>100){
+    S.queue.shift();
+    var gone=R2.keys.shift();
+    delete R2.judged['p'+gone];      // 已丢出队列的项不会再被作答，结算标记一并清掉
+    R2.offset++;
+  }
   S.pos=S.queue.length-1;
   svR2();
   render();

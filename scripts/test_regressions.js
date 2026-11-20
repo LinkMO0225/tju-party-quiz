@@ -304,4 +304,53 @@ test('F19: 真模糊只出现在两条固定底栏上', () => {
   }).map(r => r.split('{')[0].trim()).sort();
   assert.deepEqual(sel, ['.cfoot', '.foot'], '模糊层扩到列表项会让低端机滚动掉帧');
 });
+test('F20: 强化题答错后再次抽到，答对能正常移出错题池', () => {
+  const { ctx } = boot();
+  const IDX = 11;
+  ctx.prog[IDX] = { p: 'A', ok: false, seen: 1 };
+  ctx.R2.pool = [IDX];
+  // 手动摆一次出题：不依赖随机抽池，避免测试结果飘
+  const put = () => {
+    ctx.R2.seq += 1;
+    ctx.R2.keys.push(ctx.R2.seq);
+    ctx.S.queue.push(IDX);
+    ctx.S.pos = ctx.S.queue.length - 1;
+    ctx.S.mode = 'reinforce';
+    ctx.S.fromPool = true;
+    ctx.S.done = false;
+    ctx.S.picked = [];
+    ctx.S.perm = [0, 1, 2, 3];
+  };
+  const right = () => {
+    for (let d = 0; d < 4; d++) if (ctx.BANK[IDX].a.includes('ABCD'[ctx.S.perm[d]])) ctx.pick(d);
+    ctx.submit();
+  };
+
+  put(); ctx.skip();
+  assert.equal(ctx.R2.pool.length, 1, '答错后应留在池里');
+  assert.equal(ctx.R2.mastered, 0);
+
+  put(); right();
+  assert.equal(ctx.R2.pool.length, 0, '同一个错题再次抽到并答对，必须移出池');
+  assert.equal(ctx.R2.mastered, 1, '攻克计数要跟上');
+
+  // 回看这一次并重答，不能把已攻克的题推回池
+  ctx.S.done = false; ctx.S.picked = []; ctx.S.perm = [0, 1, 2, 3];
+  ctx.skip();
+  assert.equal(ctx.R2.pool.length, 0, '回看重答不得把已攻克的题推回池');
+
+  // 结算标记按出题次数记，不同次出题互不影响
+  assert.equal(Object.keys(ctx.R2.judged).length, 2, '两次出题 = 两条结算标记');
+});
+
+test('F21: 旧的强化存档（按题号记标记）能安全降级，出题序号接着涨', () => {
+  const old = { pool: [11], judged: { 11: 1, 23: 1 }, mastered: 1, total: 5, offset: 0, since: 0 };
+  const { ctx } = boot({ tju_reinforce_v1: JSON.stringify(old) });
+  const d = ctx.ldr2();
+  assert.ok(d, '存档应仍可用');
+  assert.equal(Object.keys(d.judged).length, 0, '按题号记的旧标记一律丢弃');
+  assert.equal(d.seq, 0, '旧存档没有出题序号，从 0 起算');
+  assert.equal(d.pool.length, 1);
+});
+
 console.log(`全部 ${passed} 项回归检查通过`);
