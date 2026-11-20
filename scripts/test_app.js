@@ -503,8 +503,8 @@ console.log('\n=== 十二、关于 / 更新日志 ===');
   ['这是什么', '数据来源及说明', '使用须知', '鸣谢'].forEach(s =>
     ok(ah.includes(s), '关于页含小节「' + s + '」'));
   ok(ah.includes('Link_MO'), '鸣谢署名 Link_MO');
-  ok(ah.includes('doki') && ah.includes('宝宝巴豆') && ah.includes('爱读报的坚果'),
-    '鸣谢含三位测试者');
+  ok(ah.includes('doki') && ah.includes('宝宝巴豆') && ah.includes('爱读报的坚果') && ah.includes('立春'),
+    '鸣谢含四位测试者');
   ok(ah.includes('Wilson') && ah.includes('DeepSeek V4.1 Flash'), '鸣谢含协作方 Wilson 与底层模型');
   ok(ah.includes('24软工｜Hilbert') && ah.includes('代码贡献'), '鸣谢含代码贡献者 24软工｜Hilbert');
   ok(!/「林克」|「都大」|「🫘」|「果子哥」/.test(ah), '鸣谢已去掉全部「称号」括号');
