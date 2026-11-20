@@ -6,9 +6,9 @@
 
 > 国内直连可用（2026-10-12 实测，手机流量与宽带均通过）。有 Gzip 和缓存，首屏约 87 KB。
 
-备用：<https://tju-party-quiz.app.workbuddy.host/>
+备用：<https://tju-party-quiz.app.workbuddy.host/?sharecode=5Z456ZY5HF>
 
-> 裸连同样可开；无 Gzip，首屏约 282 KB。
+> 无 Gzip，首屏约 284 KB。备用站现在需要链接里的访问码，别把 `?sharecode=` 去掉；提示「链接不完整」时以 GitHub Pages 主链接为准。
 
 ## 功能
 
